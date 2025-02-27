@@ -101,20 +101,184 @@ jobs:
 ```
 
 ## Security & Compliance
-- Use [Snyk](https://snyk.io/) and [OWASP ZAP](https://owasp.org/www-project-zap/) for security scanning.
+This section outlines the security practices for ensuring robust and secure deployments.
+[OWASP ZAP](https://owasp.org/www-project-zap/) for security scanning.
+- Enforce RBAC for cloud resources.
+- Regularly audit deployment logs.
+- Encrypt sensitive data in transit and at rest.
+
+### Implementing Role-Based Access Control (RBAC)
+RBAC restricts access based on user roles, ensuring secure interactions within the system.
+#### Example RBAC Policy for AWS IAM:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::example-bucket/*"
+    }
+  ]
+}
+```
+
+#### Kubernetes RBAC Example:
+RBAC restricts access based on user roles, enhancing security.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: developer-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "create", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-binding
+  namespace: default
+subjects:
+- kind: User
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: developer-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+### Encrypting Sensitive Data
+Encryption protects sensitive data both in transit and at rest, ensuring compliance and security best practices.
+
+#### Example: Encrypting Data in AWS S3
+```bash
+aws s3 cp myfile.txt s3://my-secure-bucket/ --sse AES256
+```
+
+#### Encrypting Environment Variables using AWS KMS:
+To protect sensitive data, always encrypt in transit and at rest.
+#### Encrypting Environment Variables using AWS KMS:
+```bash
+# Encrypt a value using AWS KMS
+aws kms encrypt --key-id alias/my-key --plaintext "my-secret-value" --output text --query CiphertextBlob > secret.enc
+
+# Decrypt the value when needed
+aws kms decrypt --ciphertext-blob fileb://secret.enc --output text --query Plaintext | base64 --decode
+```
+
+#### Encrypting Data at Rest in PostgreSQL:
+```sql
+CREATE EXTENSION pgcrypto;
+INSERT INTO users (id, email, password) VALUES (1, 'user@example.com', crypt('my-password', gen_salt('bf')));
+```
+[OWASP ZAP](https://owasp.org/www-project-zap/) for security scanning.
+- Enforce RBAC for cloud resources.
+- Regularly audit deployment logs.
+- Encrypt sensitive data in transit and at rest.
+
+
+### Security Scanning with OWASP ZAP
+OWASP ZAP performs automated penetration testing.
+#### Usage:
+```bash
+# Start OWASP ZAP in daemon mode
+zap.sh -daemon -port 8080 &
+
+# Run an automated scan against the target app
+zap-cli quick-scan --self-contained http://your-app-url.com
+```
+
+- Use[OWASP ZAP](https://owasp.org/www-project-zap/) for security scanning.
 - Enforce RBAC for cloud resources.
 - Regularly audit deployment logs.
 - Encrypt sensitive data in transit and at rest.
 
 ## Rollback Strategy
+Rollback strategies ensure smooth recovery in case of failed deployments.
+
 - Maintain versioned deployment artifacts.
 - Use feature flags for gradual rollouts.
 - Implement automated rollback mechanisms using deployment history.
+                 
+### Example: Kubernetes Rollback
+Kubernetes provides a built-in mechanism to rollback a deployment to its previous version.
+```bash
+kubectl rollout undo deployment/my-app-deployment
+```
+
+### Example: Rolling Back in GitHub Actions
+Using GitHub Actions to rollback to the last successful deployment.
+```yaml
+name: Rollback
+on:
+  workflow_dispatch:
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Rollback Deployment
+        run: kubectl rollout undo deployment/my-app-deployment
+```
+
+### Example: Rolling Back a Docker Deployment
+If using Docker, rollback can be done by redeploying the last stable container image.
+```bash
+docker service update --image my-app:previous-version my-app-service
+```
+
 
 ## Monitoring & Logging
+Effective monitoring and logging ensure system health and rapid issue resolution.
+
 - Integrate Prometheus, Grafana, and ELK Stack for observability.
 - Set up alerts for deployment failures.
 - Use centralized logging for debugging and analysis.
+  
+### Example: Configuring Prometheus & Grafana
+#### Deploying Prometheus for Metrics Collection
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: app-monitor
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  endpoints:
+  - port: web
+    interval: 30s
+```
+
+#### Setting Up Grafana Dashboards
+```bash
+grafana-cli plugins install grafana-piechart-panel
+systemctl restart grafana-server
+```
+
+### Example: Logging with ELK Stack
+#### Configuring Filebeat to Send Logs to Elasticsearch
+```yaml
+filebeat.inputs:
+- type: log
+  paths:
+    - /var/log/*.log
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+```
+
+
 
 ## Changelog
 See our [CHANGELOG.md](CHANGELOG.md) for a history of our changes.
